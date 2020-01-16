@@ -266,6 +266,9 @@ class Form_validation_test extends CI_TestCase {
 		// URI scheme case-sensitivity: https://github.com/bcit-ci/CodeIgniter/pull/4758
 		$this->assertTrue($this->form_validation->valid_url('HtTp://127.0.0.1/'));
 
+		// https://github.com/bcit-ci/CodeIgniter/issues/5755
+		$this->assertFalse($this->form_validation->valid_url('1'));
+
 		$this->assertFalse($this->form_validation->valid_url('htt://www.codeIgniter.com'));
 		$this->assertFalse($this->form_validation->valid_url(''));
 		$this->assertFalse($this->form_validation->valid_url('code igniter'));
@@ -374,7 +377,7 @@ class Form_validation_test extends CI_TestCase {
 		$this->form_validation->run();
 		$error_msg = $this->form_validation->error('foo');
 
-		$this->assertTrue(strrpos($error_msg, $prefix) === 0);
+		$this->assertStringStartsWith($prefix, $error_msg);
 		$this->assertTrue(strrpos($error_msg, $suffix, -strlen($suffix)) === (strlen($error_msg) - strlen($suffix)));
 
 		$_POST = array();
@@ -489,7 +492,7 @@ class Form_validation_test extends CI_TestCase {
 		$this->form_validation->set_data($data);
 		$valid = $this->form_validation->run('', $data);
 
-		$this->assertEquals(TRUE, $valid);
+		$this->assertTrue($valid);
 		$this->assertEquals('Dick', $data['person']['firstname']);
 		$this->assertEquals('Tracy', $data['person']['lastname']);
 	}

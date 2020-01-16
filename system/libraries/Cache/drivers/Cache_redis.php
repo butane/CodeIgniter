@@ -6,7 +6,7 @@
  *
  * This content is released under the MIT License (MIT)
  *
- * Copyright (c) 2014 - 2017, British Columbia Institute of Technology
+ * Copyright (c) 2014 - 2019, British Columbia Institute of Technology
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -29,8 +29,8 @@
  * @package	CodeIgniter
  * @author	EllisLab Dev Team
  * @copyright	Copyright (c) 2008 - 2014, EllisLab, Inc. (https://ellislab.com/)
- * @copyright	Copyright (c) 2014 - 2017, British Columbia Institute of Technology (http://bcit.ca/)
- * @license	http://opensource.org/licenses/MIT	MIT License
+ * @copyright	Copyright (c) 2014 - 2019, British Columbia Institute of Technology (https://bcit.ca/)
+ * @license	https://opensource.org/licenses/MIT	MIT License
  * @link	https://codeigniter.com
  * @since	Version 3.0.0
  * @filesource
@@ -69,6 +69,14 @@ class CI_Cache_redis extends CI_Driver
 	 */
 	protected $_redis;
 
+
+	/**
+	 * del()/delete() method name depending on phpRedis version
+	 *
+	 * @var	string
+	 */
+	protected static $_delete_name;
+
 	// ------------------------------------------------------------------------
 
 	/**
@@ -89,6 +97,10 @@ class CI_Cache_redis extends CI_Driver
 			log_message('error', 'Cache: Failed to create Redis object; extension not loaded?');
 			return;
 		}
+
+		isset(static::$_delete_name) OR static::$_delete_name = version_compare(phpversion('redis'), '5', '>=')
+			? 'del'
+			: 'delete';
 
 		$CI =& get_instance();
 
@@ -138,7 +150,7 @@ class CI_Cache_redis extends CI_Driver
 	{
 		$data = $this->_redis->hMGet($key, array('__ci_type', '__ci_value'));
 
-		if ( ! isset($data['__ci_type'], $data['__ci_value']) OR $data['__ci_value'] === FALSE)
+		if ($value !== FALSE && $this->_redis->sIsMember('_ci_redis_serialized', $key))
 		{
 			return FALSE;
 		}
@@ -196,9 +208,9 @@ class CI_Cache_redis extends CI_Driver
 		{
 			return FALSE;
 		}
-		elseif ($ttl)
+		else
 		{
-			$this->_redis->expireAt($id, time() + $ttl);
+			$this->_redis->sRemove('_ci_redis_serialized', $id);
 		}
 
 		return TRUE;
@@ -214,7 +226,14 @@ class CI_Cache_redis extends CI_Driver
 	 */
 	public function delete($key)
 	{
-		return ($this->_redis->delete($key) === 1);
+		if ($this->_redis->{static::$_delete_name}($key) !== 1)
+		{
+			return FALSE;
+		}
+
+		$this->_redis->sRemove('_ci_redis_serialized', $key);
+
+		return TRUE;
 	}
 
 	// ------------------------------------------------------------------------
@@ -228,7 +247,7 @@ class CI_Cache_redis extends CI_Driver
 	 */
 	public function increment($id, $offset = 1)
 	{
-		return $this->_redis->hIncrBy($id, 'data', $offset);
+		return $this->_redis->incrBy($id, $offset);
 	}
 
 	// ------------------------------------------------------------------------
@@ -242,7 +261,7 @@ class CI_Cache_redis extends CI_Driver
 	 */
 	public function decrement($id, $offset = 1)
 	{
-		return $this->_redis->hIncrBy($id, 'data', -$offset);
+		return $this->_redis->decrBy($id, $offset);
 	}
 
 	// ------------------------------------------------------------------------
